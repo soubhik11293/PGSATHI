@@ -3,7 +3,7 @@ export interface User {
   email: string;
   name: string;
   phone: string;
-  role: 'student' | 'homemaker' | 'provider' | 'admin';
+  role: 'student' | 'homemaker' | 'provider' | 'farmer' | 'institution' | 'admin';
   avatar: string;
   pgName?: string;
   address?: string;
@@ -124,13 +124,16 @@ export interface Booking {
   pgName: string;
   price: number;
   urgency: 'low' | 'medium' | 'high' | 'immediate';
-  status: 'REQUESTED' | 'ACCEPTED' | 'SCHEDULED' | 'ON_THE_WAY' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
+  status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'SCHEDULED' | 'ON_THE_WAY' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
   timeline: { status: string; timestamp: string; note: string }[];
   notes?: string;
   paymentId?: string;
   paymentStatus: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
   recurringId?: string;
+  recurringRequested?: boolean;
+  recurringFrequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   cancellationReason?: string;
+  idempotencyKey?: string;
   createdAt: string;
 }
 
@@ -168,6 +171,7 @@ export interface FoodOrder {
   isRecurring: boolean;
   recurringDays?: number;
   recurringStartDate?: string;
+  idempotencyKey?: string;
   createdAt: string;
 }
 
@@ -230,6 +234,50 @@ export interface Complaint {
   description: string;
   status: 'OPEN' | 'INVESTIGATING' | 'RESOLVED' | 'DISMISSED';
   resolution?: string;
+  createdAt: string;
+}
+
+export interface FarmerProfile {
+  id: string;
+  userId: string;
+  farmName: string;
+  ownerName: string;
+  bio: string;
+  serviceArea: string;
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  verifiedStatus: 'VERIFIED' | 'PENDING' | 'REJECTED' | 'SUSPENDED';
+  deliveryAvailable: boolean;
+  pickupAvailable: boolean;
+  rating: number;
+  reviewsCount: number;
+  avatar: string;
+}
+
+export interface ProduceListing {
+  id: string;
+  farmerId: string;
+  name: string;
+  category: 'vegetable' | 'fruit' | 'egg' | 'other';
+  description: string;
+  unit: string;
+  price: number;
+  quantityAvailable: number;
+  availableFrom: string;
+  deliveryAvailable: boolean;
+  pickupAvailable: boolean;
+  status: 'ACTIVE' | 'PAUSED' | 'SOLD_OUT';
+  createdAt: string;
+}
+
+export interface Institution {
+  id: string;
+  userId: string;
+  name: string;
+  domain?: string;
+  city: string;
+  verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
   createdAt: string;
 }
 

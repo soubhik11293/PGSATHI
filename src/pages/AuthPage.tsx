@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../api';
-import { GraduationCap, Utensils, Wrench, Shield, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { GraduationCap, Utensils, Wrench, Sprout, Building2, Loader2 } from 'lucide-react';
 
 export const AuthPage: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
-  const { allDemoUsers, switchUser, showToast } = useApp();
+  const { allDemoUsers, switchUser, setAuthenticatedUser, showToast } = useApp();
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState<'student' | 'homemaker' | 'provider'>('student');
+  const [role, setRole] = useState<'student' | 'homemaker' | 'provider' | 'farmer' | 'institution'>('student');
   const [pgName, setPgName] = useState('');
   const [area, setArea] = useState('Koramangala');
   const [loading, setLoading] = useState(false);
@@ -24,24 +24,23 @@ export const AuthPage: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
         const res = await api.register({
           name,
           email,
+          password,
           phone,
           role,
           pgName: role === 'student' ? pgName : undefined,
           area
         });
         if (res.success && res.user) {
-          switchUser(res.user);
+          setAuthenticatedUser(res.user, res.token);
           showToast(`Welcome to PG Saathi, ${res.user.name}!`, 'success');
-          if (onComplete) onComplete();
         } else {
           showToast('Registration failed', 'error');
         }
       } else {
-        const res = await api.login({ email });
+        const res = await api.login({ email, password });
         if (res.success && res.user) {
-          switchUser(res.user);
+          setAuthenticatedUser(res.user, res.token);
           showToast(`Welcome back, ${res.user.name}!`, 'success');
-          if (onComplete) onComplete();
         } else {
           showToast('Login failed', 'error');
         }
@@ -78,8 +77,7 @@ export const AuthPage: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
             <button
               key={user.id}
               onClick={() => {
-                switchUser(user);
-                if (onComplete) onComplete();
+                void switchUser(user);
               }}
               className="p-2 rounded-xl bg-white border border-zinc-200 hover:border-amber-400 text-left text-xs transition-colors flex items-center gap-2 cursor-pointer shadow-2xs"
             >
@@ -116,7 +114,7 @@ export const AuthPage: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
 
             <div>
               <label className="text-xs font-bold text-zinc-700 block mb-1.5">What are you joining as?</label>
-              <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
                 <button
                   type="button"
                   onClick={() => setRole('student')}
@@ -148,6 +146,28 @@ export const AuthPage: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
                 >
                   <Wrench className="w-4 h-4 mx-auto mb-1 text-blue-600" />
                   <span>Technician</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRole('farmer')}
+                  className={`p-2.5 rounded-xl border text-center transition-all ${
+                    role === 'farmer' ? 'border-emerald-500 bg-emerald-50 text-emerald-900 font-bold' : 'border-zinc-200 text-zinc-600'
+                  }`}
+                >
+                  <Sprout className="w-4 h-4 mx-auto mb-1 text-emerald-600" />
+                  <span>Farmer</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRole('institution')}
+                  className={`p-2.5 rounded-xl border text-center transition-all ${
+                    role === 'institution' ? 'border-purple-500 bg-purple-50 text-purple-900 font-bold' : 'border-zinc-200 text-zinc-600'
+                  }`}
+                >
+                  <Building2 className="w-4 h-4 mx-auto mb-1 text-purple-600" />
+                  <span>Institution</span>
                 </button>
               </div>
             </div>

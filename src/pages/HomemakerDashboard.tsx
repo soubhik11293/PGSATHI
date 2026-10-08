@@ -110,7 +110,7 @@ export const HomemakerDashboard: React.FC = () => {
               Kitchen Partner Portal
             </span>
             <span className="flex items-center gap-1 text-xs text-emerald-300 font-bold">
-              <ShieldCheck className="w-3.5 h-3.5" /> FSSAI Certified Kitchen
+              <ShieldCheck className="w-3.5 h-3.5" /> Provider information verified
             </span>
           </div>
 

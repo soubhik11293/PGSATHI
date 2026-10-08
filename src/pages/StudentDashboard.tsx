@@ -238,7 +238,7 @@ export const StudentDashboard: React.FC = () => {
               </h3>
             </div>
             <p className="text-xs text-zinc-500">
-              Cooked by verified local mothers & homemakers. 100% hygiene home kitchens.
+              Cooked by community-rated local homemakers with transparent provider verification.
             </p>
           </div>
           <button
@@ -267,7 +267,7 @@ export const StudentDashboard: React.FC = () => {
               </h3>
             </div>
             <p className="text-xs text-zinc-500">
-              Background & Police checked, guaranteed 15-30 min arrival in {currentArea}
+              See each provider's verification status, ratings, response time and service area in {currentArea}
             </p>
           </div>
           <button
@@ -293,14 +293,14 @@ export const StudentDashboard: React.FC = () => {
             <h4 className="font-black text-lg text-white">The PG Saathi Student Trust Shield</h4>
           </div>
           <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-            Every service professional is Aadhaar & Police verified before entering hostel premises. Payments are held in escrow until your service or food delivery is completed to your satisfaction.
+            Verification badges reflect documents reviewed by PG Saathi operations. Compare ratings, service areas and transparent pricing before you book; report any issue directly to Trust & Safety.
           </p>
         </div>
 
         <div className="flex items-center gap-4 shrink-0 text-center">
           <div className="bg-zinc-800 p-3 rounded-2xl border border-zinc-700">
-            <span className="text-xl font-black text-emerald-400 block">100%</span>
-            <span className="text-[10px] text-zinc-400 font-semibold uppercase">Verified Staff</span>
+            <span className="text-xl font-black text-emerald-400 block">✓</span>
+            <span className="text-[10px] text-zinc-400 font-semibold uppercase">Reviewable Profiles</span>
           </div>
           <div className="bg-zinc-800 p-3 rounded-2xl border border-zinc-700">
             <span className="text-xl font-black text-amber-400 block">4.8★</span>

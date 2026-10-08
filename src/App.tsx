@@ -7,6 +7,7 @@ import { FoodMarketplace } from './pages/FoodMarketplace';
 import { BookingsPage } from './pages/BookingsPage';
 import { HomemakerDashboard } from './pages/HomemakerDashboard';
 import { ProviderDashboard } from './pages/ProviderDashboard';
+import { FarmerDashboard } from './pages/FarmerDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AuthPage } from './pages/AuthPage';
 import { BookingModal } from './components/BookingModal';
@@ -40,6 +41,7 @@ const MainLayout: React.FC = () => {
         {activeTab === 'bookings' && <BookingsPage />}
         {activeTab === 'homemaker-dash' && <HomemakerDashboard />}
         {activeTab === 'provider-dash' && <ProviderDashboard />}
+        {activeTab === 'farmer-dash' && <FarmerDashboard />}
         {activeTab === 'admin' && <AdminDashboard />}
         {activeTab === 'auth' && <AuthPage onComplete={() => setActiveTab('home')} />}
       </main>
@@ -78,7 +80,7 @@ const MainLayout: React.FC = () => {
             <span>•</span>
             <span>🇮🇳 Built for Indian PG Hostels</span>
             <span>•</span>
-            <span className="text-emerald-600 font-bold">100% Verified Partners</span>
+            <span className="text-emerald-600 font-bold">Community-rated partners</span>
           </div>
         </div>
       </footer>

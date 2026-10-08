@@ -1,29 +1,44 @@
-import { User, ProviderProfile, HomemakerProfile, ServiceCategory, Booking, FoodOrder, RecurringService, Review, Notification, Complaint, ParsedAiResponse } from './types';
+import { User, ProviderProfile, HomemakerProfile, ServiceCategory, Booking, FoodOrder, RecurringService, Review, Notification, Complaint, ParsedAiResponse, FarmerProfile, ProduceListing } from './types';
+
+const AUTH_TOKEN_KEY = 'pgsaathi_access_token';
+
+function getAuthToken(): string | null {
+  return typeof window === 'undefined' ? null : window.localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+function setAuthToken(token: string): void {
+  if (typeof window !== 'undefined') window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+function clearAuthToken(): void {
+  if (typeof window !== 'undefined') window.localStorage.removeItem(AUTH_TOKEN_KEY);
+}
 
 function getHeaders(userId?: string) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (userId) {
-    headers['x-user-id'] = userId;
-  }
+  const token = getAuthToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 }
 
 export const api = {
   // Auth
-  async getDemoUsers(): Promise<{ users: User[] }> {
+  async getDemoUsers(): Promise<{ users: User[]; demoMode?: boolean }> {
     const res = await fetch('/api/auth/demo-users');
     return res.json();
   },
 
-  async login(payload: { email?: string; userId?: string }): Promise<{ success: boolean; user: User; token: string }> {
+  async login(payload: { email?: string; password?: string; userId?: string }): Promise<{ success: boolean; user: User; token: string }> {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    return res.json();
+    const result = await res.json();
+    if (res.ok && result.token) setAuthToken(result.token);
+    return result;
   },
 
   async register(data: any): Promise<{ success: boolean; user: User; token: string }> {
@@ -32,7 +47,24 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
+    const result = await res.json();
+    if (res.ok && result.token) setAuthToken(result.token);
+    return result;
+  },
+
+  async getMe(): Promise<{ user: User }> {
+    const res = await fetch('/api/auth/me', { headers: getHeaders() });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Not authenticated');
+    return result;
+  },
+
+  async logout(): Promise<void> {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', headers: getHeaders() });
+    } finally {
+      clearAuthToken();
+    }
   },
 
   // Categories
@@ -162,6 +194,15 @@ export const api = {
     return res.json();
   },
 
+  async cancelFoodOrder(id: string, reason: string, userId: string): Promise<{ success: boolean; order: FoodOrder; error?: string }> {
+    const res = await fetch(`/api/food/orders/${id}/cancel`, {
+      method: 'POST',
+      headers: getHeaders(userId),
+      body: JSON.stringify({ reason })
+    });
+    return res.json();
+  },
+
   // Recurring Subscriptions
   async getRecurringSubscriptions(userId: string): Promise<{ subscriptions: RecurringService[] }> {
     const res = await fetch('/api/recurring', {
@@ -287,6 +328,30 @@ export const api = {
       method: 'PUT',
       headers: getHeaders(userId),
       body: JSON.stringify({ status, resolution })
+    });
+    return res.json();
+  },
+
+  // Farmers / produce
+  async getFarmer(id: string): Promise<{ farmer: FarmerProfile; listings: ProduceListing[] }> {
+    const res = await fetch(`/api/farmers/${id}`, { headers: getHeaders() });
+    return res.json();
+  },
+
+  async addProduceListing(farmerId: string, listing: Partial<ProduceListing>, userId: string) {
+    const res = await fetch(`/api/farmers/${farmerId}/listings`, {
+      method: 'POST',
+      headers: getHeaders(userId),
+      body: JSON.stringify(listing)
+    });
+    return res.json();
+  },
+
+  async updateProduceListing(id: string, listing: Partial<ProduceListing>, userId: string) {
+    const res = await fetch(`/api/farmers/listings/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(userId),
+      body: JSON.stringify(listing)
     });
     return res.json();
   }

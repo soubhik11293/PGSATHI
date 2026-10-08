@@ -23,10 +23,9 @@ export const FoodOrderModal: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<any>(null);
 
-  if (!isOpen || !homemaker) return null;
-
   // Sync when initialPackageId changes
   React.useEffect(() => {
+    if (!homemaker) return;
     if (initialPackageId) {
       setSelectedPackageId(initialPackageId);
       setIsRecurring(true);
@@ -37,6 +36,8 @@ export const FoodOrderModal: React.FC = () => {
       setSelectedMenuItemId(homemaker.menu[0].id);
     }
   }, [initialPackageId, homemaker]);
+
+  if (!isOpen || !homemaker) return null;
 
   const selectedPackage = homemaker.packages.find(p => p.id === selectedPackageId);
   const selectedMenuItem = homemaker.menu.find(m => m.id === selectedMenuItemId);
@@ -112,7 +113,7 @@ export const FoodOrderModal: React.FC = () => {
               <div className="flex items-center gap-2">
                 <h3 className="font-extrabold text-base text-white">{homemaker.kitchenName}</h3>
                 <span className="flex items-center gap-1 text-[11px] font-bold text-white bg-black/20 px-2 py-0.5 rounded-full border border-white/20">
-                  <ShieldCheck className="w-3 h-3 text-emerald-300" /> FSSAI Verified
+                  <ShieldCheck className="w-3 h-3 text-emerald-300" /> Verified Provider
                 </span>
               </div>
               <p className="text-xs text-amber-100">

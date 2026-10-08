@@ -5,7 +5,9 @@ import { api } from '../api';
 interface AppContextType {
   currentUser: User | null;
   allDemoUsers: User[];
-  switchUser: (user: User) => void;
+  switchUser: (user: User) => Promise<void>;
+  setAuthenticatedUser: (user: User, token?: string) => void;
+  logout: () => Promise<void>;
   currentArea: string;
   setCurrentArea: (area: string) => void;
   notifications: Notification[];
@@ -49,20 +51,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [reportModal, setReportModal] = useState<{ isOpen: boolean; targetId?: string; targetName?: string }>({ isOpen: false });
   const [aiChatOpen, setAiChatOpen] = useState<boolean>(false);
 
-  // Load demo users on mount
+  // Restore an existing signed session. In development, establish a demo student
+  // session only after the server explicitly permits demo persona login.
   useEffect(() => {
     api.getDemoUsers().then(res => {
       if (res && res.users) {
         setAllDemoUsers(res.users);
-        // Default to student Aarav Patel
         const student = res.users.find(u => u.role === 'student') || res.users[0];
-        setCurrentUser(student);
-        if (student?.area) {
-          setCurrentArea(student.area);
+        if (res.demoMode === false || !student) {
+          setActiveTab('auth');
+          return;
         }
+        api.getMe()
+          .then(me => {
+            setCurrentUser(me.user);
+            if (me.user?.area) setCurrentArea(me.user.area);
+          })
+          .catch(async () => {
+            if (!student) return;
+            try {
+              const demoSession = await api.login({ userId: student.id });
+              if (demoSession.success) {
+                setCurrentUser(demoSession.user);
+                if (demoSession.user.area) setCurrentArea(demoSession.user.area);
+              } else {
+                setActiveTab('auth');
+              }
+            } catch {
+              setActiveTab('auth');
+            }
+          });
       }
     }).catch(err => {
       console.error('Failed to load demo users:', err);
+      setActiveTab('auth');
     });
   }, []);
 
@@ -90,22 +112,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4000);
   };
 
-  const switchUser = (user: User) => {
+  const setAuthenticatedUser = (user: User, _token?: string) => {
     setCurrentUser(user);
     if (user.area) setCurrentArea(user.area);
+    if (user.role === 'admin') setActiveTab('admin');
+    else if (user.role === 'homemaker') setActiveTab('homemaker-dash');
+    else if (user.role === 'provider') setActiveTab('provider-dash');
+    else if (user.role === 'farmer') setActiveTab('farmer-dash');
+    else setActiveTab('home');
+  };
 
-    // Auto-route to respective role dashboard
-    if (user.role === 'admin') {
-      setActiveTab('admin');
-    } else if (user.role === 'homemaker') {
-      setActiveTab('homemaker-dash');
-    } else if (user.role === 'provider') {
-      setActiveTab('provider-dash');
-    } else {
-      setActiveTab('home');
+  const switchUser = async (user: User) => {
+    try {
+      const session = await api.login({ userId: user.id });
+      if (!session.success) throw new Error('Demo login unavailable');
+      setAuthenticatedUser(session.user);
+      showToast(`Switched profile to ${session.user.name} (${session.user.role.toUpperCase()})`, 'info');
+    } catch {
+      showToast('Persona switching is available only in demo mode', 'error');
     }
+  };
 
-    showToast(`Switched profile to ${user.name} (${user.role.toUpperCase()})`, 'info');
+  const logout = async () => {
+    await api.logout();
+    setCurrentUser(null);
+    setNotifications([]);
+    setActiveTab('auth');
+    showToast('You have been securely logged out', 'info');
   };
 
   const markNotificationRead = async (id: string) => {
@@ -128,6 +161,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser,
         allDemoUsers,
         switchUser,
+        setAuthenticatedUser,
+        logout,
         currentArea,
         setCurrentArea,
         notifications,

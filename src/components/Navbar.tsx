@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   MapPin, Bell, Sparkles, User, LogOut, CheckCircle, 
-  Shield, Utensils, Wrench, GraduationCap, ChevronDown, 
+  Shield, Utensils, Wrench, GraduationCap, Sprout, ChevronDown, 
   Menu, X
 } from 'lucide-react';
 
@@ -19,7 +19,8 @@ export const Navbar: React.FC = () => {
     markAllNotificationsRead,
     activeTab, 
     setActiveTab,
-    setAiChatOpen
+    setAiChatOpen,
+    logout
   } = useApp();
 
   const [showNotifs, setShowNotifs] = useState(false);
@@ -34,6 +35,7 @@ export const Navbar: React.FC = () => {
       case 'homemaker': return <Utensils className="w-4 h-4 text-amber-600" />;
       case 'provider': return <Wrench className="w-4 h-4 text-blue-600" />;
       case 'admin': return <Shield className="w-4 h-4 text-purple-600" />;
+      case 'farmer': return <Sprout className="w-4 h-4 text-emerald-600" />;
       default: return <User className="w-4 h-4 text-zinc-600" />;
     }
   };
@@ -44,6 +46,7 @@ export const Navbar: React.FC = () => {
       case 'homemaker': return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'provider': return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'admin': return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'farmer': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       default: return 'bg-zinc-50 text-zinc-700 border-zinc-200';
     }
   };
@@ -54,9 +57,9 @@ export const Navbar: React.FC = () => {
       <div className="bg-zinc-900 text-zinc-300 text-xs py-1.5 px-4 flex items-center justify-between border-b border-zinc-800">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span className="font-medium text-white">PG SAATHI PROTOTYPE</span>
+           <span className="font-medium text-white">PG SAATHI COMMUNITY HUB</span>
           <span className="text-zinc-500 hidden sm:inline">|</span>
-          <span className="text-zinc-400 hidden sm:inline">Switch instant personas to test all 4 role dashboards:</span>
+           <span className="text-zinc-400 hidden sm:inline">Local food, services, produce and student support:</span>
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {allDemoUsers.map(user => (
@@ -87,6 +90,7 @@ export const Navbar: React.FC = () => {
                 if (currentUser?.role === 'admin') setActiveTab('admin');
                 else if (currentUser?.role === 'homemaker') setActiveTab('homemaker-dash');
                 else if (currentUser?.role === 'provider') setActiveTab('provider-dash');
+                else if (currentUser?.role === 'farmer') setActiveTab('farmer-dash');
                 else setActiveTab('home');
               }}
               className="flex items-center gap-2.5 text-left focus:outline-none"
@@ -211,6 +215,17 @@ export const Navbar: React.FC = () => {
                   Admin Operations Console
                 </button>
               </>
+            )}
+
+            {currentUser?.role === 'farmer' && (
+              <button
+                onClick={() => setActiveTab('farmer-dash')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'farmer-dash' ? 'text-emerald-700 bg-emerald-50 font-semibold' : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                }`}
+              >
+                Farmer Workspace
+              </button>
             )}
           </nav>
 
@@ -351,6 +366,11 @@ export const Navbar: React.FC = () => {
                       </button>
                     ))}
                   </div>
+                  <div className="border-t border-zinc-100 px-2 pt-2">
+                    <button onClick={() => { setShowRoleMenu(false); void logout(); }} className="w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2">
+                      <LogOut className="w-3.5 h-3.5" /> Secure logout
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -444,6 +464,15 @@ export const Navbar: React.FC = () => {
                 className="text-left px-4 py-2.5 rounded-xl text-sm font-bold bg-purple-50 text-purple-700"
               >
                 Admin Operations Console
+              </button>
+            )}
+
+            {currentUser?.role === 'farmer' && (
+              <button
+                onClick={() => { setActiveTab('farmer-dash'); setShowMobileNav(false); }}
+                className="text-left px-4 py-2.5 rounded-xl text-sm font-bold bg-emerald-50 text-emerald-700"
+              >
+                Farmer Workspace
               </button>
             )}
           </div>

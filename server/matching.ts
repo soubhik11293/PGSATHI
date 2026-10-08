@@ -161,7 +161,7 @@ export function calculateHomemakerMatch(
     reasons.push(`Offers discounted 7-day & monthly meal subscriptions`);
   } else if (homemaker.verifiedStatus === 'VERIFIED') {
     score += weights.reliability * 90;
-    reasons.push(`FSSAI certified home hygiene kitchen (${homemaker.completedOrders}+ orders delivered)`);
+    reasons.push(`Verified provider with ${homemaker.completedOrders}+ completed orders`);
   } else {
     score += weights.reliability * 60;
   }

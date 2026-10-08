@@ -413,7 +413,7 @@ Active Food Orders: ${JSON.stringify(activeOrders.map(o => ({ code: o.orderCode,
 Platform Policies:
 - Free cancellation available up to 30 minutes before scheduled service time.
 - Food orders can be cancelled before the kitchen begins "PREPARING".
-- All providers are Aadhaar/Police verified with ID badges.
+- Provider verification badges reflect the documents reviewed by PG Saathi operations; do not make additional safety or hygiene claims.
 - In-app payment supports UPI and Razorpay, plus Cash on Service.
 - For emergency water leakage or sparks, immediate dispatch is available via verified nearby providers.
 `;

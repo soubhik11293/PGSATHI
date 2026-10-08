@@ -1,5 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import { hashPassword } from './auth';
+import { SqliteStorage } from './storage';
 
 // Core entities for PG Saathi
 
@@ -8,7 +10,7 @@ export interface User {
   email: string;
   name: string;
   phone: string;
-  role: 'student' | 'homemaker' | 'provider' | 'admin';
+  role: 'student' | 'homemaker' | 'provider' | 'farmer' | 'institution' | 'admin';
   avatar: string;
   pgName?: string;
   address?: string;
@@ -17,6 +19,61 @@ export interface User {
   pincode: string;
   status: 'active' | 'suspended';
   createdAt: string;
+  /** Stored server-side only. Never include this field in an API response. */
+  passwordHash?: string;
+}
+
+export interface FarmerProfile {
+  id: string;
+  userId: string;
+  farmName: string;
+  ownerName: string;
+  bio: string;
+  serviceArea: string;
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  verifiedStatus: 'VERIFIED' | 'PENDING' | 'REJECTED' | 'SUSPENDED';
+  deliveryAvailable: boolean;
+  pickupAvailable: boolean;
+  rating: number;
+  reviewsCount: number;
+  avatar: string;
+}
+
+export interface ProduceListing {
+  id: string;
+  farmerId: string;
+  name: string;
+  category: 'vegetable' | 'fruit' | 'egg' | 'other';
+  description: string;
+  unit: string;
+  price: number;
+  quantityAvailable: number;
+  availableFrom: string;
+  deliveryAvailable: boolean;
+  pickupAvailable: boolean;
+  status: 'ACTIVE' | 'PAUSED' | 'SOLD_OUT';
+  createdAt: string;
+}
+
+export interface Institution {
+  id: string;
+  userId: string;
+  name: string;
+  domain?: string;
+  city: string;
+  verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  createdAt: string;
+}
+
+export interface InstitutionAnnouncement {
+  id: string;
+  institutionId: string;
+  title: string;
+  body: string;
+  publishedAt: string;
+  status: 'PUBLISHED' | 'ARCHIVED';
 }
 
 export interface ServiceCategory {
@@ -129,13 +186,16 @@ export interface Booking {
   pgName: string;
   price: number;
   urgency: 'low' | 'medium' | 'high' | 'immediate';
-  status: 'REQUESTED' | 'ACCEPTED' | 'SCHEDULED' | 'ON_THE_WAY' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
+  status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'SCHEDULED' | 'ON_THE_WAY' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
   timeline: { status: string; timestamp: string; note: string }[];
   notes?: string;
   paymentId?: string;
   paymentStatus: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
   recurringId?: string;
+  recurringRequested?: boolean;
+  recurringFrequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   cancellationReason?: string;
+  idempotencyKey?: string;
   createdAt: string;
 }
 
@@ -173,6 +233,7 @@ export interface FoodOrder {
   isRecurring: boolean;
   recurringDays?: number;
   recurringStartDate?: string;
+  idempotencyKey?: string;
   createdAt: string;
 }
 
@@ -208,6 +269,7 @@ export interface PaymentRecord {
   method: 'upi' | 'razorpay' | 'card' | 'cod';
   status: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
   gatewayResponse?: any;
+  gatewayOrderId?: string;
   createdAt: string;
 }
 
@@ -256,6 +318,7 @@ export interface Complaint {
 class Database {
   private dataDir = path.resolve(process.cwd(), 'data');
   private dbFile = path.resolve(this.dataDir, 'pgsaathi.json');
+  private sqliteStorage?: SqliteStorage;
 
   public users: User[] = [];
   public categories: ServiceCategory[] = [];
@@ -268,6 +331,10 @@ class Database {
   public reviews: Review[] = [];
   public notifications: Notification[] = [];
   public complaints: Complaint[] = [];
+  public farmers: FarmerProfile[] = [];
+  public produceListings: ProduceListing[] = [];
+  public institutions: Institution[] = [];
+  public institutionAnnouncements: InstitutionAnnouncement[] = [];
   public matchingWeights = {
     serviceRelevance: 0.30,
     availability: 0.20,
@@ -278,6 +345,7 @@ class Database {
   };
 
   constructor() {
+    if (process.env.STORAGE_DRIVER === 'sqlite') this.sqliteStorage = new SqliteStorage();
     this.init();
   }
 
@@ -287,7 +355,25 @@ class Database {
         fs.mkdirSync(this.dataDir, { recursive: true });
       }
 
-      if (fs.existsSync(this.dbFile)) {
+      if (this.sqliteStorage?.initialized()) {
+        const parsed = this.sqliteStorage.load();
+        this.users = parsed.users || [];
+        this.categories = parsed.categories || [];
+        this.providers = parsed.providers || [];
+        this.homemakers = parsed.homemakers || [];
+        this.bookings = parsed.bookings || [];
+        this.foodOrders = parsed.foodOrders || [];
+        this.recurringServices = parsed.recurringServices || [];
+        this.payments = parsed.payments || [];
+        this.reviews = parsed.reviews || [];
+        this.notifications = parsed.notifications || [];
+        this.complaints = parsed.complaints || [];
+        this.farmers = parsed.farmers || [];
+        this.produceListings = parsed.produceListings || [];
+        this.institutions = parsed.institutions || [];
+        this.institutionAnnouncements = parsed.institutionAnnouncements || [];
+        if (parsed.matchingWeights) this.matchingWeights = parsed.matchingWeights;
+      } else if (fs.existsSync(this.dbFile)) {
         const raw = fs.readFileSync(this.dbFile, 'utf-8');
         const parsed = JSON.parse(raw);
         this.users = parsed.users || [];
@@ -301,6 +387,10 @@ class Database {
         this.reviews = parsed.reviews || [];
         this.notifications = parsed.notifications || [];
         this.complaints = parsed.complaints || [];
+        this.farmers = parsed.farmers || [];
+        this.produceListings = parsed.produceListings || [];
+        this.institutions = parsed.institutions || [];
+        this.institutionAnnouncements = parsed.institutionAnnouncements || [];
         if (parsed.matchingWeights) this.matchingWeights = parsed.matchingWeights;
       }
     } catch (err) {
@@ -311,6 +401,22 @@ class Database {
       this.seedInitialData();
       this.save();
     }
+
+    let migrated = false;
+    const demoPassword = process.env.DEMO_PASSWORD || 'demo1234';
+    for (const user of this.users) {
+      if (!user.passwordHash) {
+        user.passwordHash = hashPassword(demoPassword);
+        migrated = true;
+      }
+    }
+
+    if (this.farmers.length === 0) {
+      this.seedMarketplaceExtensions();
+      migrated = true;
+    }
+
+    if (migrated) this.save();
   }
 
   public save() {
@@ -318,7 +424,7 @@ class Database {
       if (!fs.existsSync(this.dataDir)) {
         fs.mkdirSync(this.dataDir, { recursive: true });
       }
-      fs.writeFileSync(this.dbFile, JSON.stringify({
+      const payload = {
         users: this.users,
         categories: this.categories,
         providers: this.providers,
@@ -330,8 +436,14 @@ class Database {
         reviews: this.reviews,
         notifications: this.notifications,
         complaints: this.complaints,
+        farmers: this.farmers,
+        produceListings: this.produceListings,
+        institutions: this.institutions,
+        institutionAnnouncements: this.institutionAnnouncements,
         matchingWeights: this.matchingWeights
-      }, null, 2), 'utf-8');
+      };
+      if (this.sqliteStorage) this.sqliteStorage.save(payload);
+      else fs.writeFileSync(this.dbFile, JSON.stringify(payload, null, 2), 'utf-8');
     } catch (err) {
       console.error('Error saving DB:', err);
     }
@@ -490,7 +602,7 @@ class Database {
         userId: 'usr-homemaker-sunita',
         kitchenName: "Sunita's Ghar Ka Khana",
         ownerName: 'Sunita Sharma',
-        bio: 'Mother of two making authentic, homestyle North & Central Indian thalis with cold-pressed oil, minimal spices, and pure desi ghee chapatis. 100% vegetarian hygiene kitchen.',
+        bio: 'Mother of two making authentic, homestyle North & Central Indian thalis with cold-pressed oil, minimal spices, and pure desi ghee chapatis. Vegetarian home kitchen.',
         rating: 4.88,
         reviewsCount: 142,
         completedOrders: 530,
@@ -1328,6 +1440,78 @@ class Database {
         description: 'Worker arrived 40 mins late without prior call. Issue was resolved but communication was poor.',
         status: 'OPEN',
         createdAt: '2026-10-06T14:20:00Z'
+      }
+    ];
+  }
+
+  private seedMarketplaceExtensions() {
+    const farmerUserId = 'usr-farmer-anil';
+    if (!this.users.some(user => user.id === farmerUserId)) {
+      this.users.push({
+        id: farmerUserId,
+        email: 'anil@pgsaathi.com',
+        name: 'Anil Gowda',
+        phone: '+91 98450 77881',
+        role: 'farmer',
+        avatar: 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=200&auto=format&fit=crop&q=80',
+        address: 'Anekal Road Farm Cluster',
+        area: 'HSR Layout',
+        city: 'Bengaluru',
+        pincode: '560102',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        passwordHash: hashPassword(process.env.DEMO_PASSWORD || 'demo1234')
+      });
+    }
+
+    this.farmers = [{
+      id: 'farmer-1',
+      userId: farmerUserId,
+      farmName: 'Anil Fresh Farm Collective',
+      ownerName: 'Anil Gowda',
+      bio: 'Seasonal vegetables and fruits sourced from a nearby grower collective and packed for local PG communities.',
+      serviceArea: 'HSR Layout, Koramangala, BTM Layout',
+      lat: 12.9121,
+      lng: 77.6446,
+      radiusKm: 12,
+      verifiedStatus: 'VERIFIED',
+      deliveryAvailable: true,
+      pickupAvailable: true,
+      rating: 4.7,
+      reviewsCount: 24,
+      avatar: 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=200&auto=format&fit=crop&q=80'
+    }];
+
+    this.produceListings = [
+      {
+        id: 'produce-1',
+        farmerId: 'farmer-1',
+        name: 'Farm Fresh Tomato',
+        category: 'vegetable',
+        description: 'Locally harvested tomatoes, packed in 500 g portions.',
+        unit: '500 g',
+        price: 35,
+        quantityAvailable: 40,
+        availableFrom: new Date().toISOString().split('T')[0],
+        deliveryAvailable: true,
+        pickupAvailable: true,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'produce-2',
+        farmerId: 'farmer-1',
+        name: 'Seasonal Banana',
+        category: 'fruit',
+        description: 'Fresh seasonal bananas for breakfast and everyday snacks.',
+        unit: '6 pieces',
+        price: 45,
+        quantityAvailable: 25,
+        availableFrom: new Date().toISOString().split('T')[0],
+        deliveryAvailable: true,
+        pickupAvailable: true,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString()
       }
     ];
   }

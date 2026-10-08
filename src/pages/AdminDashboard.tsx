@@ -336,7 +336,7 @@ export const AdminDashboard: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    FSSAI: {h.fssaiNumber} • {h.completedOrders} orders • Rating: {h.rating}★
+                     Verification documents: {h.fssaiNumber ? 'Submitted' : 'Not submitted'} • {h.completedOrders} orders • Rating: {h.rating}★
                   </p>
                 </div>
 
@@ -366,7 +366,7 @@ export const AdminDashboard: React.FC = () => {
             Student Dispute & Complaint Tickets
           </h3>
           <p className="text-xs text-zinc-500">
-            Investigate complaints and resolve escrow payments.
+            Investigate complaints and coordinate payment reviews.
           </p>
 
           <div className="space-y-3">

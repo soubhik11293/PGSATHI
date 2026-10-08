@@ -1,4 +1,9 @@
-// Payment abstraction layer for PG Saathi
+import crypto from 'node:crypto';
+import { demoModeEnabled } from './auth';
+
+// Payment abstraction layer for PG Saathi. The mock is deliberately explicit and
+// is only auto-confirming in demo mode; production without gateway credentials
+// never reports a successful payment.
 
 export interface PaymentRequest {
   orderType: 'booking' | 'food_order';
@@ -25,7 +30,7 @@ export interface PaymentResponse {
 
 export interface IPaymentProvider {
   createOrder(req: PaymentRequest): Promise<PaymentResponse>;
-  verifyPayment(paymentId: string, signature?: string): Promise<{ success: boolean; status: 'SUCCESS' | 'FAILED'; error?: string }>;
+  verifyPayment(paymentId: string, signature?: string, gatewayPaymentId?: string, gatewayOrderId?: string): Promise<{ success: boolean; status: 'SUCCESS' | 'FAILED'; error?: string }>;
   refundPayment(paymentId: string, amount?: number): Promise<{ success: boolean; refundId: string }>;
 }
 
@@ -52,7 +57,9 @@ export class MockPaymentProvider implements IPaymentProvider {
   }
 
   async verifyPayment(paymentId: string, signature?: string): Promise<{ success: boolean; status: 'SUCCESS' | 'FAILED'; error?: string }> {
-    // In demo mode or mock mode, mark as successful
+    if (!demoModeEnabled()) {
+      return { success: false, status: 'FAILED', error: 'Payment gateway is not configured for production.' };
+    }
     return {
       success: true,
       status: 'SUCCESS'
@@ -70,6 +77,7 @@ export class MockPaymentProvider implements IPaymentProvider {
 export class RazorpayProvider implements IPaymentProvider {
   private keyId: string;
   private keySecret: string;
+  private gatewayOrders = new Map<string, string>();
 
   constructor() {
     this.keyId = process.env.RAZORPAY_KEY_ID || '';
@@ -77,30 +85,42 @@ export class RazorpayProvider implements IPaymentProvider {
   }
 
   async createOrder(req: PaymentRequest): Promise<PaymentResponse> {
-    const txnRef = `RZP_${Date.now()}`;
-    const paymentId = `pay_rzp_${Date.now()}`;
-    
-    // When real credentials exist, razorpay order would be created via Razorpay SDK / API
-    // Fallback cleanly if keys are dummy
+    const response = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${this.keyId}:${this.keySecret}`).toString('base64')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        amount: Math.round(req.amount * 100),
+        currency: req.currency || 'INR',
+        receipt: req.referenceId,
+        notes: req.notes || { userId: req.userId, orderType: req.orderType }
+      })
+    });
+    if (!response.ok) throw new Error(`Razorpay order creation failed (${response.status})`);
+    const gatewayOrder = await response.json() as { id: string };
+    const paymentId = `pay_rzp_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    this.gatewayOrders.set(paymentId, gatewayOrder.id);
     return {
       paymentId,
-      transactionRef: txnRef,
+      transactionRef: gatewayOrder.id,
       amount: req.amount,
       currency: req.currency || 'INR',
       status: 'PENDING',
       method: 'razorpay',
-      gatewayOrderId: `order_${Date.now()}`,
-      razorpayKeyId: this.keyId || 'rzp_test_pgsaathi_demo',
-      upiQrString: `upi://pay?pa=pgsaathi.rzp@icici&pn=PG%20Saathi&am=${req.amount}&cu=INR`,
+      gatewayOrderId: gatewayOrder.id,
+      razorpayKeyId: this.keyId,
       message: 'Razorpay order created'
     };
   }
 
-  async verifyPayment(paymentId: string, signature?: string): Promise<{ success: boolean; status: 'SUCCESS' | 'FAILED'; error?: string }> {
-    return {
-      success: true,
-      status: 'SUCCESS'
-    };
+  async verifyPayment(paymentId: string, signature?: string, gatewayPaymentId?: string, gatewayOrderId?: string): Promise<{ success: boolean; status: 'SUCCESS' | 'FAILED'; error?: string }> {
+    const orderId = gatewayOrderId || this.gatewayOrders.get(paymentId);
+    if (!orderId || !gatewayPaymentId || !signature) return { success: false, status: 'FAILED', error: 'Gateway order, payment ID, or signature missing' };
+    const expectedSignature = crypto.createHmac('sha256', this.keySecret).update(`${orderId}|${gatewayPaymentId}`).digest('hex');
+    if (expectedSignature !== signature) return { success: false, status: 'FAILED', error: 'Invalid payment signature' };
+    return { success: true, status: 'SUCCESS' };
   }
 
   async refundPayment(paymentId: string, amount?: number): Promise<{ success: boolean; refundId: string }> {
@@ -128,8 +148,8 @@ export class PaymentService {
     return this.provider.createOrder(req);
   }
 
-  async confirmPayment(paymentId: string, signature?: string): Promise<{ success: boolean; status: 'SUCCESS' | 'FAILED' }> {
-    return this.provider.verifyPayment(paymentId, signature);
+  async confirmPayment(paymentId: string, signature?: string, gatewayPaymentId?: string, gatewayOrderId?: string): Promise<{ success: boolean; status: 'SUCCESS' | 'FAILED'; error?: string }> {
+    return this.provider.verifyPayment(paymentId, signature, gatewayPaymentId, gatewayOrderId);
   }
 
   async processRefund(paymentId: string, amount?: number): Promise<{ success: boolean; refundId: string }> {

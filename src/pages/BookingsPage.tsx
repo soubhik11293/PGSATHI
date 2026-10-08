@@ -50,6 +50,18 @@ export const BookingsPage: React.FC = () => {
     }
   };
 
+  const handleCancelOrder = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      const result = await api.cancelFoodOrder(id, 'Student cancelled before preparation', currentUser.id);
+      if (!result.success) throw new Error(result.error || 'Cancellation failed');
+      showToast('Food order cancelled', 'info');
+      loadData();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not cancel food order', 'error');
+    }
+  };
+
   const handleToggleRecurring = async (id: string, currentStatus: string) => {
     if (!currentUser) return;
     const newStatus = currentStatus === 'active' ? 'paused' : 'active';
@@ -368,6 +380,14 @@ export const BookingsPage: React.FC = () => {
                   )}
 
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
+                    {!isDelivered && !isCancelled && ['PLACED', 'ACCEPTED'].includes(ord.status) && (
+                      <button
+                        onClick={() => handleCancelOrder(ord.id)}
+                        className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold cursor-pointer"
+                      >
+                        Cancel Order
+                      </button>
+                    )}
                     {isDelivered && (
                       <button
                         onClick={() => openReviewModal({

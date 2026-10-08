@@ -108,7 +108,7 @@ export const BookingModal: React.FC = () => {
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center text-3xl animate-bounce">
               ✓
             </div>
-            <h4 className="text-2xl font-black text-zinc-900">Booking Confirmed!</h4>
+             <h4 className="text-2xl font-black text-zinc-900">Booking Request Sent!</h4>
             <p className="text-sm text-zinc-600 max-w-md mx-auto">
               Your service visit is booked. <strong>{provider.name}</strong> has received your request and will arrive at your PG on schedule.
             </p>
