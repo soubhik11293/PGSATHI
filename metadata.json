@@ -1,0 +1,6 @@
+{
+  "name": "PG Saathi",
+  "description": "All-in-one local services & homemade food platform for PG and hostel students with AI-assisted booking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
